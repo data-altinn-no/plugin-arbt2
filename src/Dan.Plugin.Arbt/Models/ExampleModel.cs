@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace Dan.Plugin.DATASOURCENAME.Models;
+namespace Dan.Plugin.Arbt.Models;
 
 public class ExampleModel
 {
