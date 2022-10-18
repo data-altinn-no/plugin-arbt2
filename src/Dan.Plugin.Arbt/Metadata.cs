@@ -5,7 +5,6 @@ using Dan.Common;
 using Dan.Common.Enums;
 using Dan.Common.Interfaces;
 using Dan.Common.Models;
-using Dan.Plugin.Arbt.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Newtonsoft.Json.Schema.Generation;
@@ -29,44 +28,46 @@ public class Metadata : IEvidenceSourceMetadata
         {
             new()
             {
-                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.SimpleDatasetName,
+                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.SimpleDatasetBemanning,
                 EvidenceSource = global::Dan.Plugin.Arbt.Plugin.SourceName,
                 Values = new List<EvidenceValue>()
                 {
                     new()
                     {
-                        EvidenceValueName = "field1",
+                        EvidenceValueName = "Organisasjonsnummer",
                         ValueType = EvidenceValueType.String
                     },
                     new()
                     {
-                        EvidenceValueName = "field2",
+                        EvidenceValueName = "Godkjenningsstatus",
                         ValueType = EvidenceValueType.String
                     }
                 }
             },
             new()
             {
-                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.RichDatasetName,
+                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.SimpleDatasetRenhold,
                 EvidenceSource = global::Dan.Plugin.Arbt.Plugin.SourceName,
                 Values = new List<EvidenceValue>()
                 {
-                    new()
-                    {
-                        // Convention for rich datasets with a single JSON model is to use the value name "default"
-                        EvidenceValueName = "default",
-                        ValueType = EvidenceValueType.JsonSchema,
-                        JsonSchemaDefintion =  generator.Generate(typeof(ExampleModel)).ToString()
-                    }
-                },
-                AuthorizationRequirements = new List<Requirement>
-                {
-                    new MaskinportenScopeRequirement
-                    {
-                        RequiredScopes = new List<string> { "altinn:dataaltinnno/somescope" }
-                    }
+                        new()
+                        {
+                            EvidenceValueName = "Organisasjonsnummer",
+                            ValueType = EvidenceValueType.String
+                        },
+                        new()
+                        {
+                            EvidenceValueName = "Status",
+                            ValueType = EvidenceValueType.String
+                        },
+                        new()
+                        {
+                            EvidenceValueName = "StatusEndret",
+                            ValueType = EvidenceValueType.DateTime
+                        }
                 }
             }
+
         };
     }
 

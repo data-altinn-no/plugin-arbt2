@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -8,7 +9,7 @@ using Dan.Common.Exceptions;
 using Dan.Common.Interfaces;
 using Dan.Common.Models;
 using Dan.Common.Util;
-using Dan.Plugin.Arbt.Models;
+using Dan.Plugin.Arbt.Utils;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -28,8 +29,8 @@ public class Plugin
     public const string SourceName = "Digitaliseringsdirektoratet";
 
     // The function names (ie. HTTP endpoint names) and the dataset names must match. Using constants to avoid errors.
-    public const string SimpleDatasetName = "SimpleDataset";
-    public const string RichDatasetName = "RichDataset";
+    public const string SimpleDatasetBemanning = "Bemanningsforetakregisteret";
+    public const string SimpleDatasetRenhold = "Renholdsregisteret";
 
     // These are not mandatory, but there should be a distinct error code (any integer) for all types of errors that can occur. The error codes does not have to be globally
     // unique. These should be used within either transient or permanent exceptions, see Plugin.cs for examples.
@@ -37,6 +38,24 @@ public class Plugin
     private const int ERROR_INVALID_INPUT = 1002;
     private const int ERROR_NOT_FOUND = 1003;
     private const int ERROR_UNABLE_TO_PARSE_RESPONSE = 1004;
+
+    public const int ERROR_ORGANIZATION_NOT_FOUND = 1;
+
+    public const int ERROR_CCR_UPSTREAM_ERROR = 2;
+
+    public const int ERROR_NO_REPORT_AVAILABLE = 3;
+
+    public const int ERROR_ASYNC_REQUIRED_PARAMS_MISSING = 4;
+
+    public const int ERROR_ASYNC_ALREADY_INITIALIZED = 5;
+
+    public const int ERROR_ASYNC_NOT_INITIALIZED = 6;
+
+    public const int ERROR_AYNC_STATE_STORAGE = 7;
+
+    public const int ERROR_ASYNC_HARVEST_NOT_AVAILABLE = 8;
+
+    public const int ERROR_CERTIFICATE_OF_REGISTRATION_NOT_AVAILABLE = 9;
 
     public Plugin(
         IHttpClientFactory httpClientFactory,
@@ -50,23 +69,27 @@ public class Plugin
         _evidenceSourceMetadata = evidenceSourceMetadata;
     }
 
-    [Function(SimpleDatasetName)]
+    [Function(SimpleDatasetBemanning)]
     public async Task<HttpResponseData> GetSimpleDatasetAsync(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequestData req,
         FunctionContext context)
     {
-        var evidenceHarvesterRequest = await req.ReadFromJsonAsync<EvidenceHarvesterRequest>();
+        _logger.LogInformation("Running func 'Bemanning'");
+        var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+        var evidenceHarvesterRequest = JsonConvert.DeserializeObject<EvidenceHarvesterRequest>(requestBody);
 
         return await EvidenceSourceResponse.CreateResponse(req,
             () => GetEvidenceValuesSimpledataset(evidenceHarvesterRequest));
     }
 
-    [Function(RichDatasetName)]
+    [Function(SimpleDatasetRenhold)]
     public async Task<HttpResponseData> GetRichDatasetAsync(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequestData req,
         FunctionContext context)
     {
-        var evidenceHarvesterRequest = await req.ReadFromJsonAsync<EvidenceHarvesterRequest>();
+        _logger.LogInformation("Running func 'Renhold'");
+        var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+        var evidenceHarvesterRequest = JsonConvert.DeserializeObject<EvidenceHarvesterRequest>(requestBody);
 
         return await EvidenceSourceResponse.CreateResponse(req,
             () => GetEvidenceValuesRichDataset(evidenceHarvesterRequest));
@@ -74,12 +97,12 @@ public class Plugin
 
     private async Task<List<EvidenceValue>> GetEvidenceValuesSimpledataset(EvidenceHarvesterRequest evidenceHarvesterRequest)
     {
-        var url = _settings.EndpointUrl + "?someparameter=" + evidenceHarvesterRequest.OrganizationNumber;
-        var exampleModel = await MakeRequest<ExampleModel>(url);
+        var actualOrganization = await BRUtils.GetMainUnit(evidenceHarvesterRequest.OrganizationNumber, _client);
+        dynamic content = await MakeRequest<String>(string.Format(_settings.BemanningUrl, actualOrganization.Organisasjonsnummer));
 
-        var ecb = new EvidenceBuilder(_evidenceSourceMetadata, SimpleDatasetName);
-        ecb.AddEvidenceValue("field1", exampleModel.ResponseField1, SourceName);
-        ecb.AddEvidenceValue("field2", exampleModel.ResponseField2, SourceName);
+        var ecb = new EvidenceBuilder(_evidenceSourceMetadata, SimpleDatasetBemanning);
+        ecb.AddEvidenceValue($"Organisasjonsnummer", content.Organisasjonsnummer, SourceName);
+        ecb.AddEvidenceValue($"Godkjenningsstatus", content.Godkjenningsstatus, SourceName);
 
         return ecb.GetEvidenceValues();
     }
@@ -87,18 +110,20 @@ public class Plugin
     private async Task<List<EvidenceValue>> GetEvidenceValuesRichDataset(EvidenceHarvesterRequest evidenceHarvesterRequest)
     {
 
-        var url = _settings.EndpointUrl + "?someparameter=" + evidenceHarvesterRequest.OrganizationNumber;
-        var exampleModel = await MakeRequest<ExampleModel>(url);
+        var actualOrganization = await BRUtils.GetMainUnit(evidenceHarvesterRequest.OrganizationNumber, _client);
+        dynamic content = await MakeRequest<String>(string.Format(_settings.RenholdUrl, actualOrganization.Organisasjonsnummer));
 
-        var ecb = new EvidenceBuilder(_evidenceSourceMetadata, RichDatasetName);
+        var ecb = new EvidenceBuilder(_evidenceSourceMetadata, SimpleDatasetRenhold);
+        ecb.AddEvidenceValue($"Organisasjonsnummer", content.Organisasjonsnummer, SourceName);
+        ecb.AddEvidenceValue($"Status", content.Status, SourceName);
 
-        // Here we reserialize the model. While it is possible to merely send the received JSON string directly through without parsing it,
-        // the extra step of deserializing it to a known model ensures that the JSON schema supplied in the metadata always matches the
-        // dataset model.
-        //
-        // Another way to do this is to not generate the schema from the model, but "hand code" the schema in the metadata and validate the
-        // received JSON against it, throwing eg. a EvidenceSourcePermanentServerException if it fails to match. 
-        ecb.AddEvidenceValue("default", JsonConvert.SerializeObject(exampleModel), SourceName);
+        var statusChanged = Convert.ToDateTime(content.StatusEndret);
+
+        if (statusChanged != DateTime.MinValue)
+        {
+            ecb.AddEvidenceValue($"StatusEndret", statusChanged, SourceName, false);
+
+        }
 
         return ecb.GetEvidenceValues();
     }
@@ -121,7 +146,7 @@ public class Plugin
             throw result.StatusCode switch
             {
                 HttpStatusCode.NotFound => new EvidenceSourcePermanentClientException(ERROR_NOT_FOUND, "Upstream source could not find the requested entity (404)"),
-                HttpStatusCode.BadRequest => new EvidenceSourcePermanentClientException(ERROR_INVALID_INPUT,  "Upstream source indicated an invalid request (400)"),
+                HttpStatusCode.BadRequest => new EvidenceSourcePermanentClientException(ERROR_INVALID_INPUT, "Upstream source indicated an invalid request (400)"),
                 _ => new EvidenceSourceTransientException(ERROR_UPSTREAM_UNAVAILBLE, $"Upstream source retuned an HTTP error code ({(int)result.StatusCode})")
             };
         }

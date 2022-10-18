@@ -7,4 +7,7 @@ public class Settings
     public int SafeHttpClientTimeout { get; set; }
 
     public string EndpointUrl { get; set; }
+
+    public string BemanningUrl { get; }
+    public string RenholdUrl { get; }
 }
