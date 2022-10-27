@@ -8,6 +8,7 @@ public class Settings
 
     public string EndpointUrl { get; set; }
 
-    public string BemanningUrl { get; }
-    public string RenholdUrl { get; }
+    public string BemanningUrl { get; set; }
+    public string RenholdUrl { get; set; }
+    public string BilpleieUrl { get; set; }
 }

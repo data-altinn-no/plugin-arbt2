@@ -16,6 +16,7 @@ namespace Dan.Plugin.Arbt;
 /// </summary>
 public class Metadata : IEvidenceSourceMetadata
 {
+    public const string SOURCE = "Arbeidstilsynet";
     /// <summary>
     /// 
     /// </summary>
@@ -28,8 +29,8 @@ public class Metadata : IEvidenceSourceMetadata
         {
             new()
             {
-                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.SimpleDatasetBemanning,
-                EvidenceSource = global::Dan.Plugin.Arbt.Plugin.SourceName,
+                EvidenceCodeName = "Bemanningsforetakregisteret",
+                EvidenceSource = SOURCE,
                 Values = new List<EvidenceValue>()
                 {
                     new()
@@ -46,8 +47,8 @@ public class Metadata : IEvidenceSourceMetadata
             },
             new()
             {
-                EvidenceCodeName = global::Dan.Plugin.Arbt.Plugin.SimpleDatasetRenhold,
-                EvidenceSource = global::Dan.Plugin.Arbt.Plugin.SourceName,
+                EvidenceCodeName = "Renholdsregisteret",
+                EvidenceSource = SOURCE,
                 Values = new List<EvidenceValue>()
                 {
                         new()
@@ -66,11 +67,43 @@ public class Metadata : IEvidenceSourceMetadata
                             ValueType = EvidenceValueType.DateTime
                         }
                 }
+            },
+            new()
+            {
+                EvidenceCodeName = "Bilpleieregisteret",
+                EvidenceSource = SOURCE,
+                Values = new List<EvidenceValue>()
+                {
+                    new()
+                    {
+                        EvidenceValueName = "Organisasjonsnummer",
+                        ValueType = EvidenceValueType.String
+                    },
+                    new()
+                    {
+                        EvidenceValueName = "Registerstatus",
+                        ValueType = EvidenceValueType.Number
+                    },
+                    new()
+                    {
+                        EvidenceValueName = "RegisterstatusTekst",
+                        ValueType = EvidenceValueType.String
+                    },
+                    new()
+                    {
+                        EvidenceValueName = "Godkjenningsstatus",
+                        ValueType = EvidenceValueType.String
+                    },
+                    new()
+                    {
+                        EvidenceValueName = "Underenheter",
+                        ValueType = EvidenceValueType.JsonSchema
+                    }
+                }
             }
 
         };
     }
-
 
     /// <summary>
     /// This function must be defined in all DAN plugins, and is used by core to enumerate the available datasets across all plugins.
@@ -84,6 +117,7 @@ public class Metadata : IEvidenceSourceMetadata
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)] HttpRequestData req,
         FunctionContext context)
     {
+
         var response = req.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(GetEvidenceCodes());
         return response;

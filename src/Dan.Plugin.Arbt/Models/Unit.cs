@@ -1,3 +1,4 @@
+using System;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
@@ -217,4 +218,61 @@ namespace Dan.Plugin.Arbt.Models.Unit
     }
 
 
+    public class BilpleieResponse
+    {
+        [JsonProperty("metadata")]
+        public BilpleieMetadata Metadata { get; set; }
+
+        [JsonProperty("data")]
+        public BilpleieData Data { get; set; }
+
+    }
+
+    public class BilpleieMetadata
+    {
+        [JsonProperty("versjon")]
+        public string Versjon;
+
+        [JsonProperty("datoTidGenerert")]
+        public string DatoTidGenerert;
+    }
+
+    public class BilpleieData
+    {
+        [JsonProperty("organisasjonsnummer")]
+        public string Organisasjonsnummer { get; set; }
+
+        [JsonProperty("registerstatus")]
+        public int Registerstatus { get; set; }
+
+        [JsonProperty("registerstatusTekst")]
+        public string RegisterstatusTekst { get; set; }
+
+        [JsonProperty("godkjenningsstatus")]
+        public string Godkjenningsstatus { get; set; }
+
+        [JsonProperty("underenheter")]
+        public List<Enheter> Underenheter { get; set; }
+    }
+
+    public class BemanningUnit
+    {
+        [JsonProperty("Organisasjonsnummer")]
+        public string Organisasjonsnummer { get; set; }
+
+        [JsonProperty("Godkjenningsstatus")]
+        public string Godkjenningsstatus { get; set; }
+    }
+
+    public class RenholdUnit
+    {
+        [JsonProperty("StatusEndret")]
+        public DateTime StatusEndret { get; set; }
+
+        [JsonProperty("Organisasjonsnummer")]
+        public string Organisasjonsnummer { get; set; }
+
+        [JsonProperty("Status")]
+        public string Status { get; set; }
+    }
 }
