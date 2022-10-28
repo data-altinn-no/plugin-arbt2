@@ -93,11 +93,6 @@ public class Metadata : IEvidenceSourceMetadata
                     {
                         EvidenceValueName = "Godkjenningsstatus",
                         ValueType = EvidenceValueType.String
-                    },
-                    new()
-                    {
-                        EvidenceValueName = "Underenheter",
-                        ValueType = EvidenceValueType.JsonSchema
                     }
                 }
             }

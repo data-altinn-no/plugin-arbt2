@@ -3,7 +3,6 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Dan.Plugin.Arbt.Utils;
-using Dan.Common;
 using Dan.Common.Exceptions;
 using Dan.Common.Interfaces;
 using Dan.Common.Models;
@@ -15,9 +14,6 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
-using BilpleieUnit = Dan.Plugin.Arbt.Models.Unit.BilpleieResponse;
-using BemanningUnit = Dan.Plugin.Arbt.Models.Unit.BemanningUnit;
-using RenholdUnit = Dan.Plugin.Arbt.Models.Unit.RenholdUnit;
 
 namespace Dan.Plugin.Arbt;
 public class Plugin
@@ -26,28 +22,11 @@ public class Plugin
     private readonly HttpClient _client;
     private readonly Settings _settings;
     private readonly IEvidenceSourceMetadata _metadata;
-    // The datasets must supply a human-readable source description from which they originate. Individual fields might come from different sources, and this string should reflect that (ie. name all possible sources).
-
-    // These are not mandatory, but there should be a distinct error code (any integer) for all types of errors that can occur. The error codes does not have to be globally
-    // unique. These should be used within either transient or permanent exceptions, see Plugin.cs for examples.
-    private const int ERROR_UPSTREAM_UNAVAILBLE = 1001;
-    private const int ERROR_INVALID_INPUT = 1002;
-    private const int ERROR_NOT_FOUND = 1003;
-    private const int ERROR_UNABLE_TO_PARSE_RESPONSE = 1004;
     public const int ERROR_ORGANIZATION_NOT_FOUND = 1;
     public const int ERROR_CCR_UPSTREAM_ERROR = 2;
-    public const int ERROR_NO_REPORT_AVAILABLE = 3;
-    public const int ERROR_ASYNC_REQUIRED_PARAMS_MISSING = 4;
-    public const int ERROR_ASYNC_ALREADY_INITIALIZED = 5;
-    public const int ERROR_ASYNC_NOT_INITIALIZED = 6;
-    public const int ERROR_AYNC_STATE_STORAGE = 7;
-    public const int ERROR_ASYNC_HARVEST_NOT_AVAILABLE = 8;
-    public const int ERROR_CERTIFICATE_OF_REGISTRATION_NOT_AVAILABLE = 9;
     public Plugin(IHttpClientFactory httpClientFactory, IOptions<Settings> settings, IEvidenceSourceMetadata evidenceSourceMetadata)
-
     {
         _client = httpClientFactory.CreateClient("SafeHttpClient");
-        _client.DefaultRequestHeaders.TryAddWithoutValidation("user-agent", "nadobe/data.altinn.no");
         _settings = settings.Value;
         _metadata = evidenceSourceMetadata;
     }
@@ -58,7 +37,6 @@ public class Plugin
             HttpRequestData req, FunctionContext context)
     {
         _logger = context.GetLogger(context.FunctionDefinition.Name);
-        _logger.LogInformation("Running func 'Bemanning'");
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var evidenceHarvesterRequest = JsonConvert.DeserializeObject<EvidenceHarvesterRequest>(requestBody);
 
@@ -85,7 +63,6 @@ public class Plugin
             HttpRequestData req, FunctionContext context)
     {
         _logger = context.GetLogger(context.FunctionDefinition.Name);
-        _logger.LogInformation("Running func 'Renhold'");
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var evidenceHarvesterRequest = JsonConvert.DeserializeObject<EvidenceHarvesterRequest>(requestBody);
 
@@ -110,14 +87,13 @@ public class Plugin
 
         return ecb.GetEvidenceValues();
     }
-    
+
     [Function("Bilpleieregisteret")]
     public async Task<HttpResponseData> Bilpleie(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequestData req, FunctionContext context)
     {
         _logger = context.GetLogger(context.FunctionDefinition.Name);
-        _logger.LogInformation("Running func 'Bilpleie'");
         var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
         var evidenceHarvesterRequest = JsonConvert.DeserializeObject<EvidenceHarvesterRequest>(requestBody);
 
@@ -129,14 +105,21 @@ public class Plugin
         //The registry only has main units, so we have to traverse the enterprise structure in case the subject of the lookup is a subunit
         var actualOrganization = await BRUtils.GetMainUnit(evidenceHarvesterRequest.OrganizationNumber, _client);
         var url = string.Format(_settings.BilpleieUrl, actualOrganization.Organisasjonsnummer);
-        var content = await MakeRequest<BilpleieUnit>(url, actualOrganization.Organisasjonsnummer.ToString());
-
+        BilpleieUnit content = null;
         var ecb = new EvidenceBuilder(_metadata, "Bilpleieregisteret");
-        ecb.AddEvidenceValue($"Organisasjonsnummer", content.Data.Organisasjonsnummer, Metadata.SOURCE);
-        ecb.AddEvidenceValue($"Registerstatus", content.Data.Registerstatus, Metadata.SOURCE);
-        ecb.AddEvidenceValue($"RegisterstatusTekst", content.Data.RegisterstatusTekst, Metadata.SOURCE);
-        ecb.AddEvidenceValue($"Godkjenningsstatus", content.Data.Godkjenningsstatus, Metadata.SOURCE);
-        ecb.AddEvidenceValue($"Underenheter", JsonConvert.SerializeObject(content.Data.Underenheter), Metadata.SOURCE);
+        
+        ecb.AddEvidenceValue($"Organisasjonsnummer", actualOrganization.Organisasjonsnummer, Metadata.SOURCE);
+
+        try
+        {
+            content = await MakeRequest<BilpleieUnit>(url, actualOrganization.Organisasjonsnummer.ToString());
+        }
+        catch (EvidenceSourcePermanentClientException) { }
+
+        ecb.AddEvidenceValue($"Registerstatus", content != null ? content.Data.Registerstatus : -1, Metadata.SOURCE);
+        ecb.AddEvidenceValue($"RegisterstatusTekst", content != null ? content.Data.RegisterstatusTekst : "Ikke funnet", Metadata.SOURCE);
+        ecb.AddEvidenceValue($"Godkjenningsstatus", content != null ? content.Data.Godkjenningsstatus : "Ikke", Metadata.SOURCE);
+
         return ecb.GetEvidenceValues();
     }
     private async Task<T> MakeRequest<T>(string target, string organizationNumber)
