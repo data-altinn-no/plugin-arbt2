@@ -118,7 +118,7 @@ public class Plugin
 
         ecb.AddEvidenceValue($"Registerstatus", content != null ? content.Data.Registerstatus : -1, Metadata.SOURCE);
         ecb.AddEvidenceValue($"RegisterstatusTekst", content != null ? content.Data.RegisterstatusTekst : "Ikke funnet", Metadata.SOURCE);
-        ecb.AddEvidenceValue($"Godkjenningsstatus", content != null ? content.Data.Godkjenningsstatus : "Ikke", Metadata.SOURCE);
+        ecb.AddEvidenceValue($"Godkjenningsstatus", content != null ? content.Data.Godkjenningsstatus : "Ikke registrert", Metadata.SOURCE);
 
         return ecb.GetEvidenceValues();
     }
