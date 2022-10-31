@@ -20,7 +20,7 @@ namespace Dan.Plugin.Arbt.Utils
             if (org == null)
             {
                 throw new EvidenceSourcePermanentClientException(
-                            global::Dan.Plugin.Arbt.Plugin.ERROR_ORGANIZATION_NOT_FOUND,
+                            Plugin.ERROR_ORGANIZATION_NOT_FOUND,
                             $"{organizationNumber} was not found in the Central Coordinating Register for Legal Entities");
             }
 
@@ -42,7 +42,7 @@ namespace Dan.Plugin.Arbt.Utils
                     if (response.StatusCode == HttpStatusCode.NotFound)
                     {
                         throw new EvidenceSourcePermanentClientException(
-                            global::Dan.Plugin.Arbt.Plugin.ERROR_ORGANIZATION_NOT_FOUND,
+                            Plugin.ERROR_ORGANIZATION_NOT_FOUND,
                             $"{organizationNumber} was not found in the Central Coordinating Register for Legal Entities");
                     }
                 }
@@ -51,7 +51,7 @@ namespace Dan.Plugin.Arbt.Utils
             }
             catch (HttpRequestException e)
             {
-                throw new EvidenceSourcePermanentServerException(global::Dan.Plugin.Arbt.Plugin.ERROR_CCR_UPSTREAM_ERROR, null, e);
+                throw new EvidenceSourcePermanentServerException(Plugin.ERROR_CCR_UPSTREAM_ERROR, null, e);
             }
 
             try
@@ -60,7 +60,7 @@ namespace Dan.Plugin.Arbt.Utils
             }
             catch
             {
-                throw new EvidenceSourcePermanentServerException(global::Dan.Plugin.Arbt.Plugin.ERROR_CCR_UPSTREAM_ERROR,
+                throw new EvidenceSourcePermanentServerException(Plugin.ERROR_CCR_UPSTREAM_ERROR,
                     "Did not understand the data model returned from upstream source");
             }
 

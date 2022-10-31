@@ -1,3 +1,4 @@
+using System;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
@@ -215,6 +216,4 @@ namespace Dan.Plugin.Arbt.Models.Unit
         [JsonProperty("page")]
         public Page Page;
     }
-
-
 }
